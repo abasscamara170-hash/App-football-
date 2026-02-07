@@ -1,51 +1,43 @@
 import streamlit as st
 import requests
-from datetime import datetime
 
-st.set_page_config(page_title="Safe Multi-Tips", page_icon="⚽")
-st.title("⚽ Générateur Multi-Paris Safe")
+st.set_page_config(page_title="Safe Multi-Live", page_icon="⚽")
+st.title("⚽ Multi-Paris LIVE Safe")
 
 API_KEY = "15d7247bbb3712f4858d3197e840724a"
-URL = "https://v3.football.api-sports.io/odds"
+# Changement ici : on utilise l'URL des cotes en DIRECT
+URL = "https://v3.football.api-sports.io/odds/live"
 HEADERS = {'x-apisports-key': API_KEY}
 
-st.markdown("Recherche de cotes entre **1.05** et **1.50** sur tous les marchés.")
-
-if st.button('Générer mon Combiné Multi-Options'):
-    with st.spinner('Analyse de tous les marchés (Gagnant, Total, Handicap...)'):
-        today = datetime.now().strftime('%Y-%m-%d')
-        # On scanne les matchs du jour sans limite de ligue
-        res = requests.get(URL, headers=HEADERS, params={"date": today})
+if st.button('Scanner les Matchs en Direct'):
+    with st.spinner('Scan mondial des matchs en cours...'):
+        # On appelle les cotes en Live
+        res = requests.get(URL, headers=HEADERS)
         data = res.json()
         
         matchs = []
         if data.get('response'):
             for item in data['response']:
-                league_name = item['league']['name']
-                for book in item.get('bookmakers', []):
-                    # On utilise souvent Bet365 ou Pinnacle car ils ont le plus d'options
-                    if book['name'] in ["Bet365", "Pinnacle"]:
-                        for bet in book.get('bets', []):
-                            type_pari = bet['name'] # Ex: Goals Over/Under, Double Chance, etc.
-                            for v in bet['values']:
-                                cote = float(v['odd'])
-                                if 1.05 <= cote <= 1.50:
-                                    matchs.append({
-                                        "ligue": league_name,
-                                        "type": type_pari,
-                                        "choix": v['value'],
-                                        "cote": cote
-                                    })
+                league = item['league']['name']
+                teams = f"{item['fixture']['status']['elapsed']}' - {item['fixture']['id']}"
+                for bet in item.get('odds', []):
+                    type_pari = bet['name']
+                    for v in bet['values']:
+                        cote = float(v['value'])
+                        # Ta zone de sécurité
+                        if 1.05 <= cote <= 1.50:
+                            matchs.append({
+                                "info": f"{league} ({teams})",
+                                "pari": type_pari,
+                                "choix": v['name'],
+                                "cote": cote
+                            })
         
         if matchs:
-            st.success(f"🔥 {len(matchs)} options safe trouvées !")
-            # On mélange pour varier les tickets
-            import random
-            random.shuffle(matchs)
-            
-            for m in matchs[:10]: # On affiche les 10 meilleures options
-                with st.expander(f"📍 {m['ligue']} - Cote: {m['cote']}"):
-                    st.write(f"**Marché :** {m['type']}")
-                    st.write(f"**Pronostic :** {m['choix']}")
+            st.success(f"🔥 {len(matchs)} opportunités trouvées !")
+            for m in matchs[:10]:
+                with st.expander(f"💰 Cote: {m['cote']} | {m['choix']}"):
+                    st.write(f"**Ligue :** {m['info']}")
+                    st.write(f"**Type :** {m['pari']}")
         else:
-            st.warning("Aucune option trouvée. Les cotes varient vite, réessaie plus tard !")
+            st.warning("Rien en direct pour le moment. Réessaie dans quelques minutes.")
